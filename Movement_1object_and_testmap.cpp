@@ -5,7 +5,7 @@ int main() {
     // Create the main window
     sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "SFML Moving Object with Camera");
 
-    // Load the map texture
+    // Load the map texture (use a larger map image)
     sf::Texture mapTexture;
     if (!mapTexture.loadFromFile("map.png")) {
         std::cerr << "Failed to load map texture!" << std::endl;
@@ -43,8 +43,8 @@ int main() {
     // Define the view (camera)
     sf::View view = window.getDefaultView();
 
-    // Track the object's direction for flipping
-    bool isFlipped = false;
+    // Track the object's current scale (for flipping)
+    sf::Vector2f objectScale(0.5f, 0.5f); // Initial scale (50%)
 
     // Main loop
     sf::Clock clock;
@@ -68,19 +68,15 @@ int main() {
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
             objectPosition.x -= moveSpeed * deltaTime;
-            // Flip the object when moving left
-            if (!isFlipped) {
-                objectSprite.setTextureRect(sf::IntRect(objectTexture.getSize().x, 0, -objectTexture.getSize().x, objectTexture.getSize().y));
-                isFlipped = true;
-            }
+            // Flip the object horizontally when moving left
+            objectScale.x = -0.5f; // Negative scale for mirroring
+            objectSprite.setScale(objectScale);
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
             objectPosition.x += moveSpeed * deltaTime;
-            // Restore the original texture when moving right
-            if (isFlipped) {
-                objectSprite.setTextureRect(sf::IntRect(0, 0, objectTexture.getSize().x, objectTexture.getSize().y));
-                isFlipped = false;
-            }
+            // Reset the object's scale to normal when moving right
+            objectScale.x = 0.5f; // Positive scale for original look
+            objectSprite.setScale(objectScale);
         }
 
         // Ensure the object stays within the map boundaries
@@ -94,26 +90,6 @@ int main() {
 
         // Update the view (camera) to center on the object
         view.setCenter(objectPosition);
-
-        // Clamp the view to the map boundaries
-        sf::Vector2f viewSize = view.getSize();
-        sf::Vector2f viewHalfSize(viewSize.x / 2.0f, viewSize.y / 2.0f);
-        sf::Vector2f viewTopLeft = objectPosition - viewHalfSize;
-        sf::Vector2f viewBottomRight = objectPosition + viewHalfSize;
-
-        if (viewTopLeft.x < 0) {
-            view.setCenter(viewHalfSize.x, view.getCenter().y);
-        }
-        if (viewTopLeft.y < 0) {
-            view.setCenter(view.getCenter().x, viewHalfSize.y);
-        }
-        if (viewBottomRight.x > mapTexture.getSize().x) {
-            view.setCenter(mapTexture.getSize().x - viewHalfSize.x, view.getCenter().y);
-        }
-        if (viewBottomRight.y > mapTexture.getSize().y) {
-            view.setCenter(view.getCenter().x, mapTexture.getSize().y - viewHalfSize.y);
-        }
-
         window.setView(view);
 
         // Clear the window
