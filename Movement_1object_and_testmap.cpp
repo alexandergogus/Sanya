@@ -92,14 +92,28 @@ int main() {
         // Update the object's position
         objectSprite.setPosition(objectPosition);
 
-        // Update the view (camera) to center on the object, but clamp it to the map boundaries
-        sf::Vector2f viewCenter = objectPosition;
-        sf::Vector2u windowSize = window.getSize();
-        viewCenter.x = std::max(viewCenter.x, windowSize.x / 2.0f);
-        viewCenter.x = std::min(viewCenter.x, mapTexture.getSize().x - windowSize.x / 2.0f);
-        viewCenter.y = std::max(viewCenter.y, windowSize.y / 2.0f);
-        viewCenter.y = std::min(viewCenter.y, mapTexture.getSize().y - windowSize.y / 2.0f);
-        view.setCenter(viewCenter);
+        // Update the view (camera) to center on the object
+        view.setCenter(objectPosition);
+
+        // Clamp the view to the map boundaries
+        sf::Vector2f viewSize = view.getSize();
+        sf::Vector2f viewHalfSize(viewSize.x / 2.0f, viewSize.y / 2.0f);
+        sf::Vector2f viewTopLeft = objectPosition - viewHalfSize;
+        sf::Vector2f viewBottomRight = objectPosition + viewHalfSize;
+
+        if (viewTopLeft.x < 0) {
+            view.setCenter(viewHalfSize.x, view.getCenter().y);
+        }
+        if (viewTopLeft.y < 0) {
+            view.setCenter(view.getCenter().x, viewHalfSize.y);
+        }
+        if (viewBottomRight.x > mapTexture.getSize().x) {
+            view.setCenter(mapTexture.getSize().x - viewHalfSize.x, view.getCenter().y);
+        }
+        if (viewBottomRight.y > mapTexture.getSize().y) {
+            view.setCenter(view.getCenter().x, mapTexture.getSize().y - viewHalfSize.y);
+        }
+
         window.setView(view);
 
         // Clear the window
