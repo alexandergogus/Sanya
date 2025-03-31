@@ -3,154 +3,83 @@
 #include <random>
 using namespace std;
 
-class people_in_military_office {
+class people{
 protected:
     string name;
-    int force;
+    int health;
     int velocity;
 public:
-    int health;
-    people_in_military_office(string name, int force, int velocity, int health) {
+    people(string name, int health, int velocity){
         this -> name = name;
-        this -> force = force;
-        this -> velocity = velocity;
         this -> health = health;
+        this -> velocity = velocity;
     }
-    ~people_in_military_office(){
+    ~people(){
         delete[] & name;
-        delete[] & force;
-        delete[] & velocity;
         delete[] & health;
+        delete[] & velocity;
     }
-    void accept_hit(int force){
-        this -> health -= force;
+    void accept_interaction(int interaction_measure){
+        this -> health -= interaction_measure;
         if (this -> health <= 0){
-            this -> ~people_in_military_office();
+            this -> ~people();
         }
     }
-    void hit(people_in_military_office *people_in_military_office){
-        people_in_military_office -> accept_hit(this -> force);
-    }
-
-
-
-
+    virtual void interaction(people *people) {}
 };
 
-class workers : public people_in_military_office {
+class main_character : public people{
 protected:
-
-
 public:
-        workers(string name, int force, int velocity, int health): people_in_military_office(name, force, velocity, health) { }
-
-
-
+    main_character(string name, int health, int velocity): people(name, health, velocity){}
 };
 
-class visitors : public people_in_military_office {
+class people_around : public people{
 protected:
-
 public:
-    int money;
-    visitors(string name, int force, int velocity, int health, int money): people_in_military_office(name, force, velocity, health) {
-        this -> money = money;
-    }
-    ~visitors(){
-        delete[] & money;
-    }
-    void accept_fine(int fine) {
-        this -> money -= fine;
-        if (this -> money <= 0){
-            cout << "No money left. The military office won.";
-            this -> ~visitors();
-        }
-    }
-
-
 };
 
-class comissar : public workers {
+class professors: public people_around{
 protected:
-
 public:
-    comissar(string name, int force, int velocity, int health): workers(name, force, velocity, health) { }
-
 };
 
-class civil_workers : public workers {
-protected:
-    int fine;
-public:
-    civil_workers(string name, int force, int velocity, int health, int fine): workers(name, force, velocity, health) {
-    this -> fine = fine;
-    }
-    void big_fine(visitors *visitors){
-        visitors -> accept_fine(this -> fine);
-    }
-};
-
-
-class Phystech_fuckers : public workers{
+class fuckers: public professors{
 protected:
     int level_of_fucking;
 public:
-    Phystech_fuckers(string name, int force, int velocity, int health, int level_of_fucking):  workers(name, force, velocity, health) {
-    this -> level_of_fucking =  level_of_fucking;
+    fuckers(string name, int health, int velocity, int level_of_fucking) : professors(name, health, velocity){
+        this -> level_of_fucking = level_of_fucking;
+    }  
+    void interaction(people *people){
+        people -> accept_interaction(this -> level_of_fucking);
     }
-
 };
 
-class Phystech_students : public visitors {
+class normal_professors : public professors{
 protected:
-    int intelligence;
 public:
-    Phystech_students(string name, int force, int velocity, int health, int money, int intelligence): visitors(name, force, velocity, health, money) {
-    this -> intelligence = intelligence;
+    normal_professors(string name, int health, int velocity) : professors(name, health, velocity){} 
+        void interaction(people *people){
+            int randomInRange(int min, int max) {
+            static std::random_device rd;
+            static std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dist(min, max);
+            return dist(gen);
+        }
+        mark = randomInRange(-5, 5);
+        people -> accept_interaction(this -> mark);
     }
 };
 
-class other_creatures : public visitors {
+class groopmates : public people_around{
 protected:
-
+    int friend_points;
 public:
-    other_creatures(string name, int force, int velocity, int health, int money): visitors(name, force, velocity, health, money) { }
-
+    groopmates(string name, int health, int velocity, int friend_points) : people_around(name, health, velocity){
+    this -> friend_points = friend_points;
+    } 
+    void interaction(people *people){
+        people -> accept_interaction(this -> - friend_points);
+    } 
 };
-
-int randint(int low, int high) {
-    static random_device rd;
-    static mt19937 gen(rd());
-    uniform_int_distribution<> dist(low, high);
-    return dist(gen);
-}
-
-int main() {
-    Phystech_students* Sanya_Gogus = new Phystech_students("Sanya", 25, 10, 100, 20000, 100);
-    civil_workers* comissar_assistant = new civil_workers("Ershov", 6, 9, 13, 10000);
-    Phystech_fuckers* Umnov = new Phystech_fuckers("Umnov", 30, 50, 1000, 10000);
-    for (int i = 0; i < 3; i++) {
-        int random_number = randint(0, 1);
-        if (random_number == 1) {
-            cout << "Sanya hits Umnov!" << endl;
-            Sanya_Gogus->hit(Umnov);
-        } else {
-            cout << "Umnov hits Sanya!" << endl;
-            Umnov->hit(Sanya_Gogus);
-        }
-        if (Sanya_Gogus->health <= 0 || Umnov->health <= 0) {
-            break;
-        }
-    }
-    cout << "Applying fines to Sanya..." << endl;
-    comissar_assistant->big_fine(Sanya_Gogus);
-    cout << "Sanya's money after first fine: " << Sanya_Gogus->money << endl;
-
-    comissar_assistant->big_fine(Sanya_Gogus);
-    cout << "Sanya's money after second fine: " << Sanya_Gogus->money << endl;
-    delete Sanya_Gogus;
-    delete comissar_assistant;
-    delete Umnov;
-
-    return 0;
-}
