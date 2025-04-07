@@ -1,0 +1,149 @@
+#include <SFML/Graphics.hpp>
+#include <iostream>
+#include "Class.h"
+
+// Функция для проверки, является ли пиксель "стеной" (черным цветом)
+bool isWall(const sf::Image& collisionMap, const sf::Vector2f& position) {
+    if (position.x < 0 || position.y < 0 ||
+        position.x >= collisionMap.getSize().x ||
+        position.y >= collisionMap.getSize().y) {
+        return true; // За пределами карты - стена
+    }
+    sf::Color pixel = collisionMap.getPixel(static_cast<unsigned int>(position.x),
+                                         static_cast<unsigned int>(position.y));
+    return pixel == sf::Color::Black; // Черный цвет - стена
+}
+
+int main() {
+    // Создаем окно
+    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Game with Camera");
+    window.setFramerateLimit(60);
+
+    // Загрузка текстур
+    sf::Texture mapTexture;
+    if (!mapTexture.loadFromFile("map1.png")) {
+        std::cerr << "Failed to load map texture!" << std::endl;
+        return -1;
+    }
+
+    // Загружаем карту коллизий (можно использовать ту же текстуру или отдельную)
+    sf::Image collisionMap;
+    if (!collisionMap.loadFromFile("map1.png")) {
+        std::cerr << "Failed to load collision map!" << std::endl;
+        return -1;
+    }
+
+    sf::Texture objectTexture;
+    if (!objectTexture.loadFromFile("серега.png")) {
+        std::cerr << "Failed to load object texture!" << std::endl;
+        return -1;
+    }
+
+    // Создание спрайтов
+    sf::Sprite mapSprite(mapTexture);
+    sf::Sprite objectSprite(objectTexture);
+
+    // Создание персонажа
+    main_character player("Hero", 100, 200);
+
+    // Настройка спрайта персонажа
+    objectSprite.setScale(0.01f, 0.01f);
+    sf::Vector2f objectPosition(400, 400); // Начальная позиция
+    objectSprite.setPosition(objectPosition);
+    objectSprite.setOrigin(objectTexture.getSize().x / 2.0f, objectTexture.getSize().y / 2.0f);
+
+    // Создаем камеру
+    sf::View view = window.getDefaultView();
+    view.setCenter(objectPosition);
+
+    // Создание NPC
+    fuckers evilProf("Dr. Evil", 50, 100, 10);
+    normal_professors niceProf("Dr. Nice", 60, 80);
+    groopmates friend1("Buddy", 80, 120, 5);
+
+    // Игровой цикл
+    sf::Clock clock;
+    while (window.isOpen()) {
+        // Обработка событий
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+        }
+
+        // Обновление
+        float deltaTime = clock.restart().asSeconds();
+        float moveSpeed = player.getVelocity() * deltaTime;
+
+        // Сохраняем предыдущую позицию для отката при коллизии
+        sf::Vector2f previousPosition = objectPosition;
+
+        // Обработка управления
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+            objectPosition.y -= moveSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+            objectPosition.y += moveSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
+            objectPosition.x -= moveSpeed;
+            objectSprite.setScale(-0.5f, 0.5f); // Отражение при движении влево
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
+            objectPosition.x += moveSpeed;
+            objectSprite.setScale(0.5f, 0.5f); // Нормальная ориентация
+        }
+
+        // Проверка коллизий со стенами
+        sf::FloatRect objectBounds = objectSprite.getGlobalBounds();
+        sf::Vector2f checkPoints[] = {
+            {objectPosition.x, objectPosition.y}, // Центр
+            {objectBounds.left, objectBounds.top}, // Левый верхний угол
+            {objectBounds.left + objectBounds.width, objectBounds.top}, // Правый верхний
+            {objectBounds.left, objectBounds.top + objectBounds.height}, // Левый нижний
+            {objectBounds.left + objectBounds.width, objectBounds.top + objectBounds.height} // Правый нижний
+        };
+
+        bool collision = false;
+        for (const auto& point : checkPoints) {
+            if (isWall(collisionMap, point)) {
+                collision = true;
+                break;
+            }
+        }
+
+        // Если столкнулись со стеной - возвращаем предыдущую позицию
+        if (collision) {
+            objectPosition = previousPosition;
+        }
+
+        // Обновляем позицию спрайта
+        objectSprite.setPosition(objectPosition);
+
+        // Центрируем камеру на персонаже
+        view.setCenter(objectPosition);
+        window.setView(view);
+
+        // Отрисовка
+        window.clear();
+
+        // Рисуем карту с учетом смещения камеры
+        sf::Vector2f viewCenter = view.getCenter();
+        sf::Vector2f viewSize = view.getSize();
+        mapSprite.setPosition(viewCenter - viewSize/2.0f);
+        window.draw(mapSprite);
+
+        // Рисуем персонажа (позиция относительно камеры)
+        window.draw(objectSprite);
+
+        window.display();
+
+        // Взаимодействия (пример)
+        sf::FloatRect playerRect(objectPosition.x - 25, objectPosition.y - 25, 50, 50);
+        sf::FloatRect npcRect(100, 100, 50, 50);
+
+        if (playerRect.intersects(npcRect)) {
+            evilProf.interaction(&player);
+        }
+    }
+
+    return 0;
+}
