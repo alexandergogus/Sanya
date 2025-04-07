@@ -1,148 +1,154 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <vector>
 #include "Class.h"
 
-// Функция для проверки, является ли пиксель "стеной" (черным цветом)
 bool isWall(const sf::Image& collisionMap, const sf::Vector2f& position) {
     if (position.x < 0 || position.y < 0 ||
         position.x >= collisionMap.getSize().x ||
         position.y >= collisionMap.getSize().y) {
-        return true; // За пределами карты - стена
+        return true;
     }
     sf::Color pixel = collisionMap.getPixel(static_cast<unsigned int>(position.x),
                                          static_cast<unsigned int>(position.y));
-    return pixel == sf::Color::Black; // Черный цвет - стена
+    return pixel == sf::Color::Black;
+}
+
+bool checkCollision(const sf::Image& collisionMap, const sf::FloatRect& bounds) {
+    // Check four corners and center
+    sf::Vector2f points[] = {
+        {bounds.left, bounds.top},
+        {bounds.left + bounds.width, bounds.top},
+        {bounds.left, bounds.top + bounds.height},
+        {bounds.left + bounds.width, bounds.top + bounds.height},
+        {bounds.left + bounds.width/2, bounds.top + bounds.height/2}
+    };
+
+    for (const auto& point : points) {
+        if (isWall(collisionMap, point)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int main() {
-    // Создаем окно
     sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Game with Camera");
     window.setFramerateLimit(60);
 
-    // Загрузка текстур
+    // Load textures
     sf::Texture mapTexture;
     if (!mapTexture.loadFromFile("map1.png")) {
         std::cerr << "Failed to load map texture!" << std::endl;
         return -1;
     }
 
-    // Загружаем карту коллизий (можно использовать ту же текстуру или отдельную)
     sf::Image collisionMap;
     if (!collisionMap.loadFromFile("map1.png")) {
         std::cerr << "Failed to load collision map!" << std::endl;
         return -1;
     }
 
-    sf::Texture objectTexture;
-    if (!objectTexture.loadFromFile("серега.png")) {
-        std::cerr << "Failed to load object texture!" << std::endl;
+    sf::Texture playerTexture;
+    if (!playerTexture.loadFromFile("серега.png")) {
+        std::cerr << "Failed to load player texture!" << std::endl;
         return -1;
     }
 
-    // Создание спрайтов
+    // Setup sprites
     sf::Sprite mapSprite(mapTexture);
-    sf::Sprite objectSprite(objectTexture);
-
-    // Создание персонажа
+    sf::Sprite playerSprite(playerTexture);
+    
+    // Setup player
     main_character player("Hero", 100, 200);
+    const float PLAYER_SCALE = 0.5f;
+    playerSprite.setScale(PLAYER_SCALE, PLAYER_SCALE);
+    sf::Vector2f playerPosition(400, 400);
+    playerSprite.setPosition(playerPosition);
+    playerSprite.setOrigin(playerTexture.getSize().x / 2.0f, playerTexture.getSize().y / 2.0f);
 
-    // Настройка спрайта персонажа
-    objectSprite.setScale(0.01f, 0.01f);
-    sf::Vector2f objectPosition(400, 400); // Начальная позиция
-    objectSprite.setPosition(objectPosition);
-    objectSprite.setOrigin(objectTexture.getSize().x / 2.0f, objectTexture.getSize().y / 2.0f);
-
-    // Создаем камеру
+    // Setup camera
     sf::View view = window.getDefaultView();
-    view.setCenter(objectPosition);
+    view.setCenter(playerPosition);
 
-    // Создание NPC
-    fuckers evilProf("Dr. Evil", 50, 100, 10);
-    normal_professors niceProf("Dr. Nice", 60, 80);
-    groopmates friend1("Buddy", 80, 120, 5);
+    // Create NPCs
+    std::vector<fuckers> evilProfs;
+    evilProfs.emplace_back("Dr. Evil", 50, 100, 10);
+    
+    std::vector<normal_professors> niceProfs;
+    niceProfs.emplace_back("Dr. Nice", 60, 80);
+    
+    std::vector<groopmates> friends;
+    friends.emplace_back("Buddy", 80, 120, 5);
 
-    // Игровой цикл
+    // Game loop
     sf::Clock clock;
     while (window.isOpen()) {
-        // Обработка событий
+        float deltaTime = clock.restart().asSeconds();
+        
+        // Event handling
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
         }
 
-        // Обновление
-        float deltaTime = clock.restart().asSeconds();
+        // Movement
+        sf::Vector2f movement(0.f, 0.f);
         float moveSpeed = player.getVelocity() * deltaTime;
 
-        // Сохраняем предыдущую позицию для отката при коллизии
-        sf::Vector2f previousPosition = objectPosition;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) movement.y -= moveSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) movement.y += moveSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) movement.x -= moveSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) movement.x += moveSpeed;
 
-        // Обработка управления
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-            objectPosition.y -= moveSpeed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-            objectPosition.y += moveSpeed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-            objectPosition.x -= moveSpeed;
-            objectSprite.setScale(-0.5f, 0.5f); // Отражение при движении влево
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-            objectPosition.x += moveSpeed;
-            objectSprite.setScale(0.5f, 0.5f); // Нормальная ориентация
-        }
+        // Update position with collision check
+        if (movement.x != 0.f || movement.y != 0.f) {
+            sf::Vector2f newPosition = playerPosition + movement;
+            playerSprite.setPosition(newPosition);
+            
+            // Flip sprite based on movement direction
+            if (movement.x < 0) playerSprite.setScale(-PLAYER_SCALE, PLAYER_SCALE);
+            else if (movement.x > 0) playerSprite.setScale(PLAYER_SCALE, PLAYER_SCALE);
 
-        // Проверка коллизий со стенами
-        sf::FloatRect objectBounds = objectSprite.getGlobalBounds();
-        sf::Vector2f checkPoints[] = {
-            {objectPosition.x, objectPosition.y}, // Центр
-            {objectBounds.left, objectBounds.top}, // Левый верхний угол
-            {objectBounds.left + objectBounds.width, objectBounds.top}, // Правый верхний
-            {objectBounds.left, objectBounds.top + objectBounds.height}, // Левый нижний
-            {objectBounds.left + objectBounds.width, objectBounds.top + objectBounds.height} // Правый нижний
-        };
-
-        bool collision = false;
-        for (const auto& point : checkPoints) {
-            if (isWall(collisionMap, point)) {
-                collision = true;
-                break;
+            // Check collision
+            if (!checkCollision(collisionMap, playerSprite.getGlobalBounds())) {
+                playerPosition = newPosition;
+            } else {
+                playerSprite.setPosition(playerPosition);
             }
         }
 
-        // Если столкнулись со стеной - возвращаем предыдущую позицию
-        if (collision) {
-            objectPosition = previousPosition;
-        }
-
-        // Обновляем позицию спрайта
-        objectSprite.setPosition(objectPosition);
-
-        // Центрируем камеру на персонаже
-        view.setCenter(objectPosition);
+        // Update camera
+        view.setCenter(playerPosition);
+        
+        // Keep camera within map bounds
+        sf::Vector2f viewSize = view.getSize();
+        sf::Vector2f viewHalfSize = viewSize / 2.f;
+        sf::Vector2f mapSize(mapTexture.getSize());
+        
+        float cameraX = std::clamp(playerPosition.x, viewHalfSize.x, mapSize.x - viewHalfSize.x);
+        float cameraY = std::clamp(playerPosition.y, viewHalfSize.y, mapSize.y - viewHalfSize.y);
+        view.setCenter(cameraX, cameraY);
+        
         window.setView(view);
 
-        // Отрисовка
-        window.clear();
-
-        // Рисуем карту с учетом смещения камеры
-        sf::Vector2f viewCenter = view.getCenter();
-        sf::Vector2f viewSize = view.getSize();
-        mapSprite.setPosition(viewCenter - viewSize/2.0f);
-        window.draw(mapSprite);
-
-        // Рисуем персонажа (позиция относительно камеры)
-        window.draw(objectSprite);
-
-        window.display();
-
-        // Взаимодействия (пример)
-        sf::FloatRect playerRect(objectPosition.x - 25, objectPosition.y - 25, 50, 50);
-        sf::FloatRect npcRect(100, 100, 50, 50);
-
-        if (playerRect.intersects(npcRect)) {
-            evilProf.interaction(&player);
+        // Check NPC interactions
+        sf::FloatRect playerRect(playerPosition.x - 25, playerPosition.y - 25, 50, 50);
+        for (auto& npc : evilProfs) {
+            // You'll need to track NPC positions and check them here
+            // Example: if (playerRect.intersects(npc.getBounds())) npc.interaction(&player);
         }
+
+        // Drawing
+        window.clear();
+        
+        // Draw map relative to camera
+        mapSprite.setPosition(view.getCenter() - viewHalfSize);
+        window.draw(mapSprite);
+        
+        window.draw(playerSprite);
+        window.display();
     }
 
     return 0;
