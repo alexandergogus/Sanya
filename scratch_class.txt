@@ -1,0 +1,102 @@
+#include <iostream>
+#include <string>
+#include <random>
+using namespace std;
+
+int randomInRange(int min, int max) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(gen);
+}
+
+class people {
+protected:
+    string name;
+    int health;
+    int velocity;
+public:
+    people(string name, int health, int velocity) {
+        this->name = name;
+        this->health = health;
+        this->velocity = velocity;
+    }
+
+    virtual ~people() {}
+
+    int getVelocity() const {
+        return velocity;
+    }
+
+    void accept_interaction(int interaction_measure) {
+        this->health -= interaction_measure;
+        if (this->health <= 0) {
+            // Персонаж умер
+        }
+    }
+
+    virtual void interaction(people* people) = 0;
+};
+
+class main_character : public people {
+public:
+    main_character(string name, int health, int velocity)
+        : people(name, health, velocity) {}
+
+    void interaction(people* people) override {
+        // Реализация взаимодействия для главного героя
+    }
+};
+
+class people_around : public people {
+public:
+    people_around(string name, int health, int velocity)
+        : people(name, health, velocity) {}
+};
+
+class professors : public people_around {
+public:
+    professors(string name, int health, int velocity)
+        : people_around(name, health, velocity) {}
+};
+
+class fuckers : public professors {
+protected:
+    int level_of_fucking;
+public:
+    fuckers(string name, int health, int velocity, int level_of_fucking)
+        : professors(name, health, velocity) {
+        this->level_of_fucking = level_of_fucking;
+    }
+
+    void interaction(people* people) override {
+        people->accept_interaction(this->level_of_fucking);
+    }
+};
+
+class normal_professors : public professors {
+protected:
+    int mark;
+public:
+    normal_professors(string name, int health, int velocity)
+        : professors(name, health, velocity) {}
+
+    void interaction(people* people) override {
+        mark = randomInRange(-5, 5);
+        people->accept_interaction(this->mark);
+    }
+};
+
+class groopmates : public people_around {
+protected:
+    int friend_points;
+public:
+    groopmates(string name, int health, int velocity, int friend_points)
+        : people_around(name, health, velocity) {
+        this->friend_points = friend_points;
+    }
+
+    void interaction(people* people) override {
+        people->accept_interaction(-this->friend_points);
+    }
+};
